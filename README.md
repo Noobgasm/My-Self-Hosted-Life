@@ -18,9 +18,24 @@ It uses docker and docker compose for the moment but I might learn and create so
 
 ### Software Used in this Project
 
+#### Host
 - [Docker CE](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/)
 - [Ubuntu 20.04](https://ubuntu.com/download/server)
+- [Mutt](http://www.mutt.org/)
+- [RKHunter](http://rkhunter.sourceforge.net/)
+- [ClamAV](https://www.clamav.net/)
+- [Deny Hosts](http://denyhosts.sourceforge.net/)
+
+#### Docker
+
 - [Traefik v2](https://docs.traefik.io/)
+- [Docker Socket Proxy](https://github.com/Tecnativa/docker-socket-proxy)
+- [MariaDB](https://mariadb.org/)
+- [Redis](https://redis.io/)
+- [PHPMyAdmin](https://www.phpmyadmin.net/)
+- [Redis Commander](https://github.com/joeferner/redis-commander)
+- [Mailcow](https://mailcow.email/)
+- [Authelia](https://www.authelia.com/)
 
 ### Obsolete/Exchanged Software

@@ -1,0 +1,276 @@
+version: "3.8"
+
+#---Networks---#
+
+networks:
+  traefik:
+    external:
+      name: traefik
+  default:
+    driver: bridge
+  proxy:
+    external:
+      name: proxy
+
+#---Volumes---#
+
+volumes:
+  redis:
+  mariadb:
+
+#---Secrets---#
+
+secrets:
+  cloudflare_api:
+    file: $SECRETSDIR/cloudflare_api
+
+#---Services---#
+
+services:
+
+  # Traefik - Reverse Proxy
+  traefik:
+    container_name: traefik
+    image: traefik:chevrotin
+    restart: unless-stopped
+    command:
+      - --global.checkNewVersion=true
+      - --global.sendAnonymousUsage=true
+      - --entryPoints.http.address=:80
+      - --entryPoints.https.address=:443
+      - --entryPoints.traefik.address=:8080
+      - --api=true
+      - --log=true
+      - --log.level=DEBUG # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+      - --accessLog=true
+      - --accessLog.filePath=/traefik.log
+      - --accessLog.bufferingSize=100
+      - --accessLog.filters.statusCodes=400-499
+      - --providers.docker=true
+      - --providers.docker.endpoint=tcp://proxy:2375
+      - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME1`)
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=traefik
+      - --entrypoints.https.http.tls.certresolver=dns-cloudflare
+      - --providers.docker.swarmMode=false
+      - --providers.file.directory=/rules
+      - --providers.file.watch=true
+#      - --certificatesResolvers.dns-cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory # LetsEncrypt Staging Server - uncomment when $
+      - --certificatesResolvers.dns-cloudflare.acme.email=$CLOUDFLARE_EMAIL
+      - --certificatesResolvers.dns-cloudflare.acme.storage=/acme.json
+      - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.provider=cloudflare
+      - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+    networks:
+      - traefik
+      - proxy
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - proxy
+    secrets:
+      - cloudflare_api
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    volumes:
+      - $DOCKERDIR/apps/traefik/rules:/rules
+      - $DOCKERDIR/apps/traefik/acme/acme.json:/acme.json
+      - $DOCKERDIR/apps/traefik/traefik.log:/traefik.log
+    environment:
+      - CF_API_EMAIL=$CLOUDFLARE_EMAIL
+      - CF_API_KEY_FILE=/run/secrets/cloudflare_api
+    labels:
+      - "traefik.enable=true"
+      ## Services - API
+      - "traefik.http.routers.traefik.service=api@internal"
+      # HTTP-to-HTTPS Redirect
+      - "traefik.http.routers.http-catchall.entrypoints=http"
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      # HTTP Routers
+      - "traefik.http.routers.traefik.entrypoints=https"
+      - "traefik.http.routers.traefik.rule=Host(`$TRAEFIK_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.traefik.tls=true"
+#      - "traefik.http.routers.traefik.tls.certresolver=dns-cloudflare" # Comment out this line after first run of traefik to force the use of wildcard
+#      certs
+      - "traefik.http.routers.traefik.tls.domains[0].main=$DOMAINNAME1"
+      - "traefik.http.routers.traefik.tls.domains[0].sans=*.$DOMAINNAME1"
+      - "traefik.http.routers.traefik.tls.domains[1].main=$DOMAINNAME2"
+      - "traefik.http.routers.traefik.tls.domains[1].sans=*.$DOMAINNAME2"
+      - "traefik.http.routers.traefik.tls.domains[2].main=$DOMAINNAME3"
+      - "traefik.http.routers.traefik.tls.domains[2].sans=*.$DOMAINNAME3"
+      ## Middlewares
+      - "traefik.http.routers.traefik.middlewares=chain-authelia@file"
+#      - "traefik.http.routers.traefik.middlewares=chain-no-auth@file" # No Authentication
+
+  # Docker Socket Proxy
+  proxy:
+    container_name: proxy
+    image: tecnativa/docker-socket-proxy
+    restart: unless-stopped
+    networks:
+      - proxy
+    privileged: true
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    environment:
+      - LOG_LEVEL=info # debug,info,notice,warning,err,crit,alert,emerg
+      ## Variables match the URL prefix (i.e. AUTH blocks access to /auth/* parts of the API, etc.).
+      # 0 to revoke access.
+      # 1 to grant access.
+      ## Granted by Default
+      - EVENTS=1
+      - PING=1
+      - VERSION=1
+      ## Revoked by Default
+      # Security critical
+      - AUTH=0
+      - SECRETS=0
+      - POST=0
+      # Not always needed
+      - BUILD=0
+      - COMMIT=0
+      - CONFIGS=0
+      - CONTAINERS=1 # Traefik
+      - DISTRIBUTION=0
+      - EXEC=0
+      - IMAGES=0
+      - INFO=0
+      - NETWORKS=0
+      - NODES=0
+      - PLUGINS=0
+      - SERVICES=0
+      - SESSION=0
+      - SWARM=0
+      - SYSTEM=0
+      - TASKS=0
+      - VOLUMES=0
+
+  # Redis - Key-value Store
+  redis:
+    container_name: redis
+    image: redis:latest
+    restart: unless-stopped
+    entrypoint: redis-server --appendonly yes
+    networks:
+      - database
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - redis:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+  # Redis Commander - Redis Management Tool
+  rediscommander:
+    container_name: rediscommander
+    image: rediscommander/redis-commander:latest
+    restart: unless-stopped
+    networks:
+      - traefik
+      - database
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - REDIS_HOST=redis
+    labels:
+#      - "traefik.enable=true"
+#      ## HTTP Routers
+#      - "traefik.http.routers.rediscommander.entrypoints=https"
+#      - "traefik.http.routers.rediscommander.rule=Host(`$REDIS_SUBDOMAIN.$DOMAINNAME1`)"
+#      - "traefik.http.routers.rediscommander.tls=true"
+#      ## Middlewares
+#      ## HTTP Services
+#      - "traefik.http.routers.rediscommander.service=rediscommander"
+#      - "traefik.http.services.rediscommander.loadbalancer.server.port=8081"
+#      - "traefik.http.routers.rediscommander.middlewares=chain-authelia@file"
+
+  # phpMyAdmin - WebUI for MariaDB
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    hostname: phpmyadmin
+    restart: unless-stopped
+    networks:
+      - traefik
+      - database
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+    labels:
+#      - "traefik.enable=true"
+#      ## HTTP Routers
+#      - "traefik.http.routers.phpmyadmin.entrypoints=https"
+#      - "traefik.http.routers.phpmyadmin.rule=Host(`$PMA_SUBDOMAIN.$DOMAINNAME1`)"
+#      - "traefik.http.routers.phpmyadmin.tls=true"
+#      ## Middlewares
+#      ## HTTP Services
+#      - "traefik.http.routers.phpmyadmin.service=phpmyadmin"
+#      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+#      - "traefik.http.routers.phpmyadmin.middlewares=chain-authelia@file"
+
+  # MariaDB – Database Server for your Apps
+  mariadb:
+    image: linuxserver/mariadb
+    container_name: mariadb
+    hostname: mariadb
+    restart: always
+    networks:
+      - database
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - mariadb:/config
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+  # Authelia  - SSO and 2FA
+  authelia:
+    container_name: authelia
+    image: authelia/authelia:4.21
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - traefik
+      - database
+    depends_on:
+      - mariadb
+      - redis
+    volumes:
+      - $DOCKERDIR/apps/authelia:/config
+    environment:
+      - TZ=$TZ
+      - AUTHELIA_JWT_SECRET_FILE=/run/secrets/authelia_jwt_secret
+      - AUTHELIA_SESSION_SECRET_FILE=/run/secrets/authelia_session_secret
+      - AUTHELIA_STORAGE_MYSQL_PASSWORD_FILE=/run/secrets/authelia_mysql_password
+      - AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE=/run/secrets/authelia_notifier_password
+    secrets:
+      - authelia_jwt_secret
+      - authelia_session_secret
+      - authelia_mysql_password
+      - authelia_notifier_password
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.authelia.entrypoints=https"
+      - "traefik.http.routers.authelia.rule=Host(`authelia.$DOMAINNAME1`)"
+      - "traefik.http.routers.authelia.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.authelia.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.authelia.service=authelia"
+      - "traefik.http.services.authelia.loadbalancer.server.port=9091"
