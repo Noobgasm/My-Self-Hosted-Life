@@ -11,18 +11,30 @@ networks:
   proxy:
     external:
       name: proxy
+  database:
+    external:
+      name: database    
 
 #---Volumes---#
 
 volumes:
   redis:
   mariadb:
+  bitwarden:
 
 #---Secrets---#
 
 secrets:
   cloudflare_api:
     file: $SECRETSDIR/cloudflare_api
+  authelia_jwt_secret:
+    file: $SECRETSDIR/authelia_jwt_secret
+  authelia_session_secret:
+    file: $SECRETSDIR/authelia_session_secret
+  authelia_mysql_password:
+    file: $SECRETSDIR/authelia_mysql_password
+  authelia_notifier_password:
+    file: $SECRETSDIR/authelia_notifier_password
 
 #---Services---#
 
@@ -86,29 +98,29 @@ services:
       - CF_API_EMAIL=$CLOUDFLARE_EMAIL
       - CF_API_KEY_FILE=/run/secrets/cloudflare_api
     labels:
-      - "traefik.enable=true"
+      - traefik.enable=true
       ## Services - API
-      - "traefik.http.routers.traefik.service=api@internal"
+      - traefik.http.routers.traefik.service=api@internal
       # HTTP-to-HTTPS Redirect
-      - "traefik.http.routers.http-catchall.entrypoints=http"
-      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
-      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - traefik.http.routers.http-catchall.entrypoints=http
+      - traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)
+      - traefik.http.routers.http-catchall.middlewares=redirect-to-https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
       # HTTP Routers
-      - "traefik.http.routers.traefik.entrypoints=https"
-      - "traefik.http.routers.traefik.rule=Host(`$TRAEFIK_SUBDOMAIN.$DOMAINNAME1`)"
-      - "traefik.http.routers.traefik.tls=true"
-#      - "traefik.http.routers.traefik.tls.certresolver=dns-cloudflare" # Comment out this line after first run of traefik to force the use of wildcard
+      - traefik.http.routers.traefik.entrypoints=https
+      - traefik.http.routers.traefik.rule=Host(`$TRAEFIK_SUBDOMAIN.$DOMAINNAME1`)
+      - traefik.http.routers.traefik.tls=true
+#      - traefik.http.routers.traefik.tls.certresolver=dns-cloudflare # Comment out this line after first run of traefik to force the use of wildcard
 #      certs
-      - "traefik.http.routers.traefik.tls.domains[0].main=$DOMAINNAME1"
-      - "traefik.http.routers.traefik.tls.domains[0].sans=*.$DOMAINNAME1"
-      - "traefik.http.routers.traefik.tls.domains[1].main=$DOMAINNAME2"
-      - "traefik.http.routers.traefik.tls.domains[1].sans=*.$DOMAINNAME2"
-      - "traefik.http.routers.traefik.tls.domains[2].main=$DOMAINNAME3"
-      - "traefik.http.routers.traefik.tls.domains[2].sans=*.$DOMAINNAME3"
+      - traefik.http.routers.traefik.tls.domains[0].main=$DOMAINNAME1
+      - traefik.http.routers.traefik.tls.domains[0].sans=*.$DOMAINNAME1
+      - traefik.http.routers.traefik.tls.domains[1].main=$DOMAINNAME2
+      - traefik.http.routers.traefik.tls.domains[1].sans=*.$DOMAINNAME2
+      - traefik.http.routers.traefik.tls.domains[2].main=$DOMAINNAME3
+      - traefik.http.routers.traefik.tls.domains[2].sans=*.$DOMAINNAME3
       ## Middlewares
-      - "traefik.http.routers.traefik.middlewares=chain-authelia@file"
-#      - "traefik.http.routers.traefik.middlewares=chain-no-auth@file" # No Authentication
+      - traefik.http.routers.traefik.middlewares=chain-authelia@file
+#      - traefik.http.routers.traefik.middlewares=chain-no-auth@file # No Authentication
 
   # Docker Socket Proxy
   proxy:
@@ -174,23 +186,12 @@ services:
     image: rediscommander/redis-commander:latest
     restart: unless-stopped
     networks:
-      - traefik
-      - database
+      database:
+        ipv4_address: 20.20.10.201
     security_opt:
       - no-new-privileges:true
     environment:
       - REDIS_HOST=redis
-    labels:
-#      - "traefik.enable=true"
-#      ## HTTP Routers
-#      - "traefik.http.routers.rediscommander.entrypoints=https"
-#      - "traefik.http.routers.rediscommander.rule=Host(`$REDIS_SUBDOMAIN.$DOMAINNAME1`)"
-#      - "traefik.http.routers.rediscommander.tls=true"
-#      ## Middlewares
-#      ## HTTP Services
-#      - "traefik.http.routers.rediscommander.service=rediscommander"
-#      - "traefik.http.services.rediscommander.loadbalancer.server.port=8081"
-#      - "traefik.http.routers.rediscommander.middlewares=chain-authelia@file"
 
   # phpMyAdmin - WebUI for MariaDB
   phpmyadmin:
@@ -199,24 +200,14 @@ services:
     hostname: phpmyadmin
     restart: unless-stopped
     networks:
-      - traefik
-      - database
+      database:
+        ipv4_address: 20.20.10.200
     security_opt:
       - no-new-privileges:true
     environment:
       PMA_HOST: mariadb
       PMA_PORT: 3306
-    labels:
-#      - "traefik.enable=true"
-#      ## HTTP Routers
-#      - "traefik.http.routers.phpmyadmin.entrypoints=https"
-#      - "traefik.http.routers.phpmyadmin.rule=Host(`$PMA_SUBDOMAIN.$DOMAINNAME1`)"
-#      - "traefik.http.routers.phpmyadmin.tls=true"
-#      ## Middlewares
-#      ## HTTP Services
-#      - "traefik.http.routers.phpmyadmin.service=phpmyadmin"
-#      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
-#      - "traefik.http.routers.phpmyadmin.middlewares=chain-authelia@file"
+
 
   # MariaDB – Database Server for your Apps
   mariadb:
@@ -264,13 +255,73 @@ services:
       - authelia_mysql_password
       - authelia_notifier_password
     labels:
-      - "traefik.enable=true"
+      - traefik.enable=true
       ## HTTP Routers
-      - "traefik.http.routers.authelia.entrypoints=https"
-      - "traefik.http.routers.authelia.rule=Host(`authelia.$DOMAINNAME1`)"
-      - "traefik.http.routers.authelia.tls=true"
+      - traefik.http.routers.authelia.entrypoints=https
+      - traefik.http.routers.authelia.rule=Host(`authelia.$DOMAINNAME1`)
+      - traefik.http.routers.authelia.tls=true
       ## Middlewares
-      - "traefik.http.routers.authelia.middlewares=chain-authelia@file"
+      - traefik.http.routers.authelia.middlewares=chain-authelia@file
       ## HTTP Services
-      - "traefik.http.routers.authelia.service=authelia"
-      - "traefik.http.services.authelia.loadbalancer.server.port=9091"
+      - traefik.http.routers.authelia.service=authelia
+      - traefik.http.services.authelia.loadbalancer.server.port=9091
+
+  # Wireguard - VPN Server
+  wireguard:
+    image: linuxserver/wireguard
+    container_name: wireguard
+    networks:
+      - database
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - SERVERURL=$WIREGUARD_SUBDOMAIN.$DOMAINNAME1
+      - SERVERPORT=51820
+      - PEERS=1
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.13.14.0
+    volumes:
+      - wireguard:/config
+      - /lib/modules:/lib/modules
+      - $DOCKERDIR/apps/wireguard:/config/coredns
+    ports:
+      - 51820:51820/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+
+  # Bitwarden - Password Manager
+  bitwarden:
+    image: bitwardenrs/server-mysql
+    container_name: bitwarden
+    networks:
+      - traefik
+      - database
+    restart: unless-stopped
+    volumes:
+      - bitwarden:/data
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DOMAIN: https://$BITWARDEN_SUBDOMAIN.$DOMAINNAME1
+      WEBSOCKET_ENABLED: 'true' # Required to use websockets
+      SIGNUPS_ALLOWED: 'false'   # set to false to disable signups
+      ADMIN_TOKEN: $BITWARDEN_ADMIN_TOKEN
+      DATABASE_URL: 'mysql://$BITWARDEN_DB_USER:$BITWARDEN_DB_PASS@mariadb/$BITWARDEN_DB_NAME'
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.bitwarden.entrypoints=https
+      - traefik.http.routers.bitwarden.rule=Host(`$BITWARDEN_SUBDOMAIN.$DOMAINNAME1`)
+      - traefik.http.routers.bitwarden.service=bitwarden
+      - traefik.http.services.bitwarden.loadbalancer.server.port=80
+      - traefik.http.routers.bitwarden-hub.rule=Host(`$BITWARDEN_SUBDOMAIN.$DOMAINNAME1`) && Path(`/notifications/hub`)
+      - traefik.http.routers.bitwarden-hub.service=bitwarden-hub
+      - traefik.http.services.bitwarden-hub.loadbalancer.server.port=3012
+      - traefik.http.routers.bitwarden.middlewares=chain-no-auth@file

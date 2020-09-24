@@ -12,7 +12,7 @@ It uses docker and docker compose for the moment but I might learn and create so
 
 - Easy to Deploy and Maintain
 - Secure
-- Backup Redundancy
+- Easy to Backup and Restore
 - Cheap
 - Own My Data
 
@@ -27,7 +27,7 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [ClamAV](https://www.clamav.net/)
 - [Deny Hosts](http://denyhosts.sourceforge.net/)
 
-#### Docker
+#### Main Docker Stack
 
 - [Traefik v2](https://docs.traefik.io/)
 - [Docker Socket Proxy](https://github.com/Tecnativa/docker-socket-proxy)
@@ -35,7 +35,10 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [Redis](https://redis.io/)
 - [PHPMyAdmin](https://www.phpmyadmin.net/)
 - [Redis Commander](https://github.com/joeferner/redis-commander)
-- [Mailcow](https://mailcow.email/)
 - [Authelia](https://www.authelia.com/)
+
+#### Separate Stacks
+
+- [Mailcow](https://mailcow.email/)
 
 ### Obsolete/Exchanged Software
