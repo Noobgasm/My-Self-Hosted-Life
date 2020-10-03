@@ -36,6 +36,9 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [PHPMyAdmin](https://www.phpmyadmin.net/)
 - [Redis Commander](https://github.com/joeferner/redis-commander)
 - [Authelia](https://www.authelia.com/)
+- [Wireguard](https://www.wireguard.com/)
+- [BitwardenRS](https://github.com/dani-garcia/bitwarden_rs)
+- [Nextcloud](https://nextcloud.com/)
 
 #### Separate Stacks
 
