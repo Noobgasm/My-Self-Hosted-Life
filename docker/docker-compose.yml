@@ -23,6 +23,7 @@ volumes:
   wireguard:
   bitwarden:
   nextcloud:
+  xbrowser:
 
 #---Secrets---#
 
@@ -355,3 +356,47 @@ services:
       - "traefik.http.routers.nextcloud.service=nextcloud"
       - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
       - "traefik.http.routers.nextcloud.middlewares=chain-no-auth@file"
+
+  # XBrowserSync - Bookmark Manager
+  xbrowserdb:
+    image: mongo:4.2.6
+    container_name: xbrowserdb
+    restart: unless-stopped
+    networks:
+      - database
+    volumes:
+      - xbrowser:/data/db
+      - $DOCKERDIR/apps/xbrowser/mongoconfig.js:/docker-entrypoint-initdb.d/mongoconfig.js
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - MONGO_INITDB_DATABASE=xbrowsersync
+      - MONGO_INITDB_ROOT_PASSWORD=$XBROWSER_DB_PASS
+      - MONGO_INITDB_ROOT_USERNAME=$XBROWSER_DB_USER
+
+  xbrowserapi:
+    image: xbrowsersync/api:latest
+    container_name: xbrowserapi
+    restart: unless-stopped
+    depends_on:
+      - xbrowserdb
+    networks:
+      - "traefik"
+      - database
+    volumes:
+      - "$DOCKERDIR/apps/xbrowser/settings.json:/usr/src/api/config/settings.json"
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - XBROWSERSYNC_DB_PWD=$XBROWSER_DB_PASS
+      - XBROWSERSYNC_DB_USER=$XBROWSER_DB_USER
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.xbrowser.entrypoints=https"
+      - "traefik.http.routers.xbrowser.rule=Host(`$XBROWSER_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.xbrowser.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.xbrowser.service=xbrowser"
+      - "traefik.http.services.xbrowser.loadbalancer.server.port=8080"
+      - "traefik.http.routers.xbrowser.middlewares=chain-no-auth@file"

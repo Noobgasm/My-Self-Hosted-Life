@@ -39,6 +39,7 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [Wireguard](https://www.wireguard.com/)
 - [BitwardenRS](https://github.com/dani-garcia/bitwarden_rs)
 - [Nextcloud](https://nextcloud.com/)
+- [XBrowserSync](https://www.xbrowsersync.org/)
 
 #### Separate Stacks
 
