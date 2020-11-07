@@ -40,6 +40,7 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [BitwardenRS](https://github.com/dani-garcia/bitwarden_rs)
 - [Nextcloud](https://nextcloud.com/)
 - [XBrowserSync](https://www.xbrowsersync.org/)
+- [Wallabag](https://www.wallabag.it/en)
 
 #### Separate Stacks
 
