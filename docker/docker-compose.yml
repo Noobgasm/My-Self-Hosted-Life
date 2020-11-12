@@ -24,6 +24,8 @@ volumes:
   bitwarden:
   nextcloud:
   xbrowser:
+  wallabag:
+  n8n:
 
 #---Secrets---#
 
@@ -401,6 +403,7 @@ services:
       - "traefik.http.services.xbrowser.loadbalancer.server.port=8080"
       - "traefik.http.routers.xbrowser.middlewares=chain-no-auth@file"
 
+  # Wallabag - Read It Later
   wallabag:
     image: wallabag/wallabag
     container_name: wallabag
@@ -438,3 +441,40 @@ services:
       - "traefik.http.routers.wallabag.service=wallabag"
       - "traefik.http.services.wallabag.loadbalancer.server.port=80"
       - "traefik.http.routers.wallabag.middlewares=chain-no-auth@file"
+
+  # Node Automation
+  n8n:
+    image: n8nio/n8n
+    container_name: n8n
+    restart: unless-stopped
+    networks:
+      - traefik
+      - database
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - DB_TYPE=mysqldb
+      - DB_MYSQLDB_DATABASE=$N8N_DB_NAME
+      - DB_MYSQLDB_HOST=mariadb
+      - DB_MYSQLDB_PORT=3306
+      - DB_MYSQLDB_USER=$N8N_DB_USER
+      - DB_MYSQLDB_PASSWORD=$N8N_DB_PASS
+      - GENERIC_TIMEZONE=$TZ
+      - N8N_HOST=${N8N_SUBDOMAIN}.${DOMAINNAME1}
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_TUNNEL_URL=https://${N8N_SUBDOMAIN}.${DOMAINNAME1}/
+      - VUE_APP_URL_BASE_API=https://${N8N_SUBDOMAIN}.${DOMAINNAME1}/
+    volumes:
+      - n8n:/root/.n8n
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.n8n.entrypoints=https"
+      - "traefik.http.routers.n8n.rule=Host(`$N8N_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.n8n.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.n8n.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.n8n.service=n8n"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
