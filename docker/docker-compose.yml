@@ -26,6 +26,7 @@ volumes:
   xbrowser:
   wallabag:
   n8n:
+  firefly:
 
 #---Secrets---#
 
@@ -40,6 +41,20 @@ secrets:
     file: $SECRETSDIR/authelia_mysql_password
   authelia_notifier_password:
     file: $SECRETSDIR/authelia_notifier_password
+  firefly_app_key:
+    file: $SECRETSDIR/firefly_app_key
+  firefly_db_name:
+    file: $SECRETSDIR/firefly_db_name
+  firefly_db_pass:
+    file: $SECRETSDIR/firefly_db_pass
+  firefly_db_user:
+    file: $SECRETSDIR/firefly_db_user
+  firefly_mail_host:
+    file: $SECRETSDIR/firefly_mail_host
+  firefly_mail:
+    file: $SECRETSDIR/firefly_mail
+  firefly_mail_pass:
+    file: $SECRETSDIR/firefly_mail_pass
 
 #---Services---#
 
@@ -478,3 +493,47 @@ services:
       ## HTTP Services
       - "traefik.http.routers.n8n.service=n8n"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+
+  firefly:
+    image: jc5x/firefly-iii:latest
+    container_name: firefly
+    restart: unless-stopped
+    networks:
+      - traefik
+      - database
+    volumes:
+      - firefly:/var/www/firefly-iii
+    env_file: .firefly_env
+    security_opt:
+      - no-new-privileges:true
+    secrets:
+      - firefly_app_key
+      - firefly_db_name
+      - firefly_db_pass
+      - firefly_db_user
+      - firefly_mail_host
+      - firefly_mail
+      - firefly_mail_pass
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+      MAIL_FROM_FILE: /run/secrets/firefly_mail
+      MAIL_USERNAME_FILE: /run/secrets/firefly_mail
+      MAIL_PASSWORD: /run/secrets/firefly_mail_pass
+      MAIL_HOST: /run/secrets/firefly_mail_host
+      DB_DATABASE_FILE: /run/secrets/firefly_db_name
+      DB_USERNAME_FILE: /run/secrets/firefly_db_user
+      DB_PASSWORD_FILE: /run/secrets/firefly_db_pass
+      APP_KEY_FILE: /run/secrets/firefly_app_key
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.firefly.entrypoints=https"
+      - "traefik.http.routers.firefly.rule=Host(`$FIREFLY_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.firefly.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.firefly.service=firefly"
+      - "traefik.http.services.firefly.loadbalancer.server.port=8080"
+      - "traefik.http.routers.firefly.middlewares=chain-no-auth@file"
+

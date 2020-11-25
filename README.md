@@ -42,6 +42,7 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [XBrowserSync](https://www.xbrowsersync.org/)
 - [Wallabag](https://www.wallabag.it/en)
 - [N8N](https://n8n.io/)
+- [Firefly III](https://www.firefly-iii.org/)
 
 #### Separate Stacks
 
