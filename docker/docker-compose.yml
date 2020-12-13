@@ -27,6 +27,7 @@ volumes:
   wallabag:
   n8n:
   firefly:
+  leantime:
 
 #---Secrets---#
 
@@ -494,6 +495,7 @@ services:
       - "traefik.http.routers.n8n.service=n8n"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
 
+  # Firefly III - Budget and Finance Manager
   firefly:
     image: jc5x/firefly-iii:latest
     container_name: firefly
@@ -537,3 +539,31 @@ services:
       - "traefik.http.services.firefly.loadbalancer.server.port=8080"
       - "traefik.http.routers.firefly.middlewares=chain-no-auth@file"
 
+  # Leantime - Project Manager
+  leantime:
+    image: leantime/leantime:latest
+    container_name: leantime
+    networks:
+      - traefik
+      - database
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - LEAN_DB_HOST=mariadb
+      - LEAN_DB_USER=$LEANTIME_DB_USER
+      - LEAN_DB_PASSWORD=$LEANTIME_DB_PASS
+      - LEAN_DB_DATABASE=$LEANTIME_DB_NAME
+      - LEAN_APP_URL=https://$LEANTIME_SUBDOMAIN.${DOMAINNAME1}
+    restart: unless-stopped
+    volumes:
+      - leantime:/var/www/html
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.leantime.entrypoints=https"
+      - "traefik.http.routers.leantime.rule=Host(`$LEANTIME_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.leantime.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.leantime.service=leantime"
+      - "traefik.http.services.leantime.loadbalancer.server.port=80"
+      - "traefik.http.routers.leantime.middlewares=chain-no-auth@file"
