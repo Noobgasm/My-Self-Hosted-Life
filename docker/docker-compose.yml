@@ -567,3 +567,41 @@ services:
       - "traefik.http.routers.leantime.service=leantime"
       - "traefik.http.services.leantime.loadbalancer.server.port=80"
       - "traefik.http.routers.leantime.middlewares=chain-no-auth@file"
+  
+  resume:
+    image: amruthpillai/reactive-resume:latest
+    container_name: resume
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - "traefik"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.resume.entrypoints=https"
+      - "traefik.http.routers.resume.rule=Host(`$RESUME_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.resume.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.resume.service=resume"
+      - "traefik.http.services.resume.loadbalancer.server.port=80"
+      - "traefik.http.routers.resume.middlewares=chain-authelia@file"
+
+  draw:
+    image: fjudith/draw.io:latest
+    container_name: "draw"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - "traefik"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.draw.entrypoints=https"
+      - "traefik.http.routers.draw.rule=Host(`$DRAW_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.draw.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.draw.service=draw"
+      - "traefik.http.services.draw.loadbalancer.server.port=8080"
+      - "traefik.http.routers.draw.middlewares=chain-authelia@file"

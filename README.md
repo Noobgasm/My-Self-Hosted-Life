@@ -44,6 +44,8 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [N8N](https://n8n.io/)
 - [Firefly III](https://www.firefly-iii.org/)
 - [Leantime](https://leantime.io/)
+- [Draw.io](https://github.com/jgraph/drawio)
+- [Reactive Resumé](https://rxresu.me/)
 
 #### Separate Stacks
 
