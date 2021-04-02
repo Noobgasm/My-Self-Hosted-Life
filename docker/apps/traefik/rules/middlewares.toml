@@ -8,6 +8,8 @@
    [http.middlewares.middlewares-secure-headers.headers]
      accessControlAllowMethods= ["GET", "OPTIONS", "PUT"]
      accessControlMaxAge = 100
+     accessControlAllowOriginList = ["*"]
+     accessControlAllowHeaders = ["authorization","content-type"]
      hostsProxyHeaders = ["X-Forwarded-Host"]
      sslRedirect = true
      stsSeconds = 63072000

@@ -28,6 +28,19 @@ volumes:
   n8n:
   firefly:
   leantime:
+  matrixdb:
+  ma1sd:
+  jitsi:
+  jicofo:
+  jvb:
+  prosody:
+  registration:
+  synapse:
+  synapseweb:
+  discord:
+  whatsapp:
+  reminderbot:
+  dimension:
 
 #---Secrets---#
 
@@ -72,6 +85,7 @@ services:
       - --entryPoints.http.address=:80
       - --entryPoints.https.address=:443
       - --entryPoints.traefik.address=:8080
+      - --entryPoints.synapse.address=:8448
       - --api=true
       - --log=true
       - --log.level=DEBUG # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
@@ -109,6 +123,10 @@ services:
         mode: host
       - target: 443
         published: 443
+        protocol: tcp
+        mode: host
+      - target: 8448
+        published: 8448
         protocol: tcp
         mode: host
     volumes:
@@ -605,3 +623,274 @@ services:
       - "traefik.http.routers.draw.service=draw"
       - "traefik.http.services.draw.loadbalancer.server.port=8080"
       - "traefik.http.routers.draw.middlewares=chain-authelia@file"
+
+  ### Matrix Server Stack
+
+  # Postgres for Matrix
+  matrixdb:
+    image: postgres:latest
+    container_name: matrixdb
+    restart: unless-stopped
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - POSTGRES_USER=$SYNAPSE_DB_USER
+      - POSTGRES_PASSWORD=$SYNAPSE_DB_PASS
+      - POSTGRES_DB=$SYNAPSE_DB_NAME
+      - POSTGRES_INITDB_ARGS=--lc-collate C --lc-ctype C --encoding UTF8
+    volumes:
+      - matrixdb:/var/lib/postgresql/data
+      - $DOCKERDIR/apps/matrix/matrixdb:/docker-entrypoint-initdb.d
+
+  # Traefik Certs Dumper
+  dumper:
+    image: ldez/traefik-certs-dumper:v2.7.4
+    container_name: dumper
+    restart: unless-stopped
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: sh -c '
+      apk add jq
+      ; while ! [ -e /data/acme.json ]
+      || ! [ `jq ".[] | .Certificates | length" /data/acme.json` != 0 ]; do
+      sleep 1
+      ; done
+      && traefik-certs-dumper file --version v2 --watch
+      --source /data/acme.json --dest /certs --domain-subdir --crt-ext=.pem --key-ext=.pem'
+    volumes:
+      - $DOCKERDIR/apps/traefik/acme:/data
+      - $DOCKERDIR/apps/dumper/certs:/certs:z
+
+  # Coturn
+  coturn:
+    image: instrumentisto/coturn:latest
+    container_name: coturn
+    restart: unless-stopped
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - 3478:3478
+      - 5349:5349
+      - 49152-49172:49152-49172
+    volumes:
+      - $DOCKERDIR/apps/matrix/coturn/turnserver.conf:/etc/coturn/turnserver.conf
+      - $DOCKERDIR/apps/dumper/certs:/certs:z
+
+  # MA1SD
+  ma1sd:
+    image: ma1uta/ma1sd:latest
+    container_name: ma1sd
+    restart: unless-stopped
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - MA1SD_LOG_LEVEL=debug
+    volumes:
+      - $DOCKERDIR/apps/matrix/ma1sd:/etc/ma1sd
+      - ma1sd:/var/ma1sd
+
+  # Element
+  element:
+    image: vectorim/element-web:latest
+    container_name: element
+    restart: unless-stopped
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/apps/matrix/element/config.json:/app/config.json
+      - $DOCKERDIR/apps/matrix/element/config.json:/app/config.element.undebug.com.json
+      - $DOCKERDIR/apps/matrix/element/nginx.conf:/etc/nginx/nginx.conf
+
+  jitsi:
+    image: jitsi/web:latest
+    container_name: jitsi
+    restart: unless-stopped
+    networks:
+      matrix:
+        aliases:
+          - meet.jitsi
+    security_opt:
+      - no-new-privileges:true
+    env_file: $DOCKERDIR/apps/matrix/jitsi/.env
+    volumes:
+      - jitsi:/config:Z
+
+  # XMPP server
+  prosody:
+    image: jitsi/prosody:latest
+    container_name: prosody
+    restart: unless-stopped
+    networks:
+      matrix:
+        aliases:
+          - xmpp.meet.jitsi
+    security_opt:
+      - no-new-privileges:true
+    env_file: $DOCKERDIR/apps/matrix/jitsi/.env
+    volumes:
+      - prosody:/config:Z
+
+
+  # Focus component
+  jicofo:
+    image: jitsi/jicofo:latest
+    container_name: jicofo
+    restart: unless-stopped
+    env_file: $DOCKERDIR/apps/matrix/jitsi/.env
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - jicofo:/config:Z
+    depends_on:
+      - prosody
+    networks:
+      - matrix
+
+  # Video bridge
+  jvb:
+    image: jitsi/jvb:latest
+    container_name: jvb
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    env_file: $DOCKERDIR/apps/matrix/jitsi/.env
+    networks:
+      matrix:
+        aliases:
+          - jvb.meet.jitsi
+    ports:
+      - '10000:10000/udp'
+      - '4443:4443'
+    volumes:
+      - jvb:/config:Z
+    depends_on:
+      - prosody
+
+  # Synapse Admin
+  synapseadmin:
+    image: awesometechnologies/synapse-admin:latest
+    container_name: synapseadmin
+    restart: unless-stopped
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+
+  registration:
+    image: zeratax/matrix-registration:v0.8.0
+    container_name: registration
+    restart: unless-stopped
+    command: serve
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/apps/matrix/registration:/config
+      - registration:/data
+
+  # Synapse
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: synapse
+    restart: unless-stopped
+    networks:
+      - matrix
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - synapse:/data
+      - $DOCKERDIR/apps/matrix/synapse/shared_secret/shared_secret_authenticator.py:/usr/local/lib/python3.8/site-packages/shared_secret_authenticator.py
+      - $DOCKERDIR/apps/matrix/synapse/antispam/synapse_simple_antispam:/usr/local/lib/python3.8/site-packages/synapse_simple_antispam
+      - $DOCKERDIR/apps/matrix/discord/registration.yaml:/discord-registration.yaml:z
+      - $DOCKERDIR/apps/matrix/whatsapp/registration.yaml:/whatsapp-registration.yaml:z
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.synapse.entrypoints=synapse"
+      - "traefik.http.routers.synapse.rule=Host(`matrix_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.synapse.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.synapse.service=synapse"
+      - "traefik.http.services.synapse.loadbalancer.server.port=8048"
+      - "traefik.http.routers.synapse.middlewares=chain-no-auth@file"
+  
+  # Nginx for Matrix
+  synapseweb:
+    image: nginx:latest
+    container_name: synapseweb
+    restart: unless-stopped
+    networks:
+      - matrix
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/apps/matrix/synapseweb/nginx.conf:/etc/nginx/nginx.conf
+      - synapseweb:/nginx-data
+      - $DOCKERDIR/apps/matrix/synapseweb/conf.d:/etc/nginx/conf.d
+      - $DOCKERDIR/apps/matrix/synapseweb/files:/files
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.synapseweb.entrypoints=https"
+      - "traefik.http.routers.synapseweb.rule=Host(`matrix.$DOMAINNAME1`,`element.$DOMAINNAME1`,`jitsi.$DOMAINNAME1`,`dimension.$DOMAINNAME1`,`$DOMAINNAME1`)"
+      - "traefik.http.routers.synapseweb.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.synapseweb.service=synapseweb"
+      - "traefik.http.services.synapseweb.loadbalancer.server.port=8080"
+#      - "traefik.http.routers.synapseweb.middlewares=chain-no-auth@file"
+      - "traefik.http.routers.synapseweb.middlewares=chain-authelia@file"
+
+  # Discord Bridge for Matrix
+  discord:
+    image: sorunome/mx-puppet-discord:latest
+    container_name: discord
+    restart: unless-stopped
+    environment:
+      - CONFIG_PATH=/config/config.yaml
+      - REGISTRATION_PATH=/config/registration.yaml
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/apps/matrix/discord:/config:z
+      - discord:/data:z
+
+  # Whatsapp Bridge for Matrix
+  whatsapp:
+    image: dock.mau.dev/tulir/mautrix-whatsapp:latest
+    command: /usr/bin/mautrix-whatsapp -c /config/config.yaml -r /config/registration.yaml
+    container_name: whatsapp
+    restart: unless-stopped
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/apps/matrix/whatsapp:/config:z
+      - whatsapp:/data
+
+  # Dimension for Matrix
+  dimension:
+    image: turt2live/matrix-dimension:latest
+    container_name: dimension
+    restart: unless-stopped
+    networks:
+      - matrix
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - dimension:/data:z

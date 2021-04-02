@@ -47,7 +47,26 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [Draw.io](https://github.com/jgraph/drawio)
 - [Reactive Resumé](https://rxresu.me/)
 
-#### Separate Stacks
+#### Matrix Server Stack
+
+- [Synapse](https://matrix.org/docs/projects/server/synapse)
+- [Traefik Certs DUmper](https://github.com/ldez/traefik-certs-dumper)
+- [MA1SD](https://github.com/ma1uta/ma1sd)
+- [SynapseAdmin](https://github.com/Awesome-Technologies/synapse-admin)
+- [Matrix Registration](https://github.com/ZerataX/matrix-registration)
+- [Element](https://matrix.org/docs/projects/client/element)
+- [Coturn](https://github.com/coturn/coturn)
+- [Jitsi Meet](https://github.com/jitsi/docker-jitsi-meet)
+  - Jitsi
+  - Prosody
+  - Jicofo
+  - JVB
+- [Dimension](https://github.com/turt2live/matrix-dimension)
+- [WhatsApp Bridge](https://github.com/tulir/mautrix-whatsapp)
+- [Discord Bridge](https://github.com/matrix-discord/mx-puppet-discord)
+- [ReminderBot](https://github.com/anoadragon453/matrix-reminder-bot)
+
+#### Mail Stack
 
 - [Mailcow](https://mailcow.email/)
 
