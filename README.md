@@ -46,6 +46,10 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [Leantime](https://leantime.io/)
 - [Draw.io](https://github.com/jgraph/drawio)
 - [Reactive Resumé](https://rxresu.me/)
+- [Wiki.js](https://js.wiki/)
+- [Ghost](https://ghost.org/)
+- [Matomo](https://matomo.org/)
+- [Discourse](https://www.discourse.org/)
 
 #### Matrix Server Stack
 

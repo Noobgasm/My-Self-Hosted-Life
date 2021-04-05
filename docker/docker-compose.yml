@@ -31,6 +31,8 @@ volumes:
   n8n:
   firefly:
   leantime:
+  matomo:
+  ghost:
   # Matrix Server Volumes
   matrixdb:
   ma1sd:
@@ -648,6 +650,111 @@ services:
       - "traefik.http.routers.draw.service=draw"
       - "traefik.http.services.draw.loadbalancer.server.port=8080"
       - "traefik.http.routers.draw.middlewares=chain-authelia@file"
+
+  wikidb:
+    image: postgres:11-alpine
+    container_name: wikidb
+    networks:
+      - database
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: $WIKI_DB_NAME
+      POSTGRES_PASSWORD: $WIKI_DB_PASS
+      POSTGRES_USER: $WIKI_DB_USER
+    volumes:
+      - wikidb:/var/lib/postgresql/data
+
+  wiki:
+    image: requarks/wiki:latest
+    container_name: wiki
+    depends_on:
+      - wikidb
+    networks:
+      - traefik
+      - database
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: wikidb
+      DB_PORT: 5432
+      DB_USER: $WIKI_DB_USER
+      DB_PASS: $WIKI_DB_PASS
+      DB_NAME: $WIKI_DB_NAME
+    volumes:
+      - wiki:/wiki
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.wiki.entrypoints=https"
+      - "traefik.http.routers.wiki.rule=Host(`$WIKI_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.wiki.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.wiki.service=wiki"
+      - "traefik.http.services.wiki.loadbalancer.server.port=3000"
+      - "traefik.http.routers.wiki.middlewares=chain-no-auth@file"
+
+  matomo:
+    image: matomo:latest
+    container_name: matomo
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - "traefik"
+      - database
+    volumes:
+      - matomo:/var/www/html
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.matomo.entrypoints=https"
+      - "traefik.http.routers.matomo.rule=Host(`$MATOMO_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.matomo.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.matomo.service=matomo"
+      - "traefik.http.services.matomo.loadbalancer.server.port=80"
+
+  ghost:
+    image: ghost:latest
+    container_name: blog
+    networks:
+      - traefik
+      - database
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      database__client: mysql
+      database__connection__host: mariadb
+      database__connection__user: $GHOST_DB_USER
+      database__connection__password: $GHOST_DB_PASS
+      database__connection__database: $GHOST_DB_NAME
+      url: https://$DOMAINNAME3
+      mail__transport: SMTP
+      mail__options__service: mailcow
+      mail__options__host: $MAIL_SERVER 
+      mail__options__port: 465
+      mail__options__secureconnection: "true"
+      mail__options__auth__user: $GHOST_MAIL_USER
+      mail__options__auth__pass: $GHOST_MAIL_PASS
+      mail__from: "'$GHOST_FROM_NAME' <$GHOST_FROM_ADDRESS>"
+    volumes:
+      - ghost:/var/lib/ghost
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.ghost.entrypoints=https"
+      - "traefik.http.routers.ghost.rule=Host(`$DOMAINNAME3`)"
+      - "traefik.http.routers.ghost.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.ghost.service=ghost"
+      - "traefik.http.services.ghost.loadbalancer.server.port=2368"
+      - "traefik.http.routers.ghost.middlewares=chain-no-auth@file"
+
 
   ### Matrix Server Stack
 
