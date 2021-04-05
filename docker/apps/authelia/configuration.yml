@@ -54,6 +54,16 @@ access_control:
       policy: bypass
     - domain: gotify.example.com
       policy: two_factor
+    - domain: pwndrop.example.com
+      resources:
+      - "^/pwndrop.*$"
+      policy: two_factor
+    - domain: pwndrop.example.com
+      resources:
+      - "^/.+$"
+      policy: bypass
+    - domain: pwndrop.example.com
+      policy: two_factor
     - domain: example.com
       resources:
       - "^/.+$"

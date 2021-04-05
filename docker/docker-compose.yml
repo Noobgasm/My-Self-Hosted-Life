@@ -36,6 +36,7 @@ volumes:
   gotify:
   papermerge:
   papermerge_data:
+  pwndrop:
   # Matrix Server Volumes
   matrixdb:
   ma1sd:
@@ -807,6 +808,33 @@ services:
       - "traefik.http.routers.papermerge.service=papermerge"
       - "traefik.http.services.papermerge.loadbalancer.server.port=8000"
       - "traefik.http.routers.papermerge.middlewares=chain-authelia@file"
+
+  # Pwndrop - Simple File Transfer
+  pwndrop:
+    image: ghcr.io/linuxserver/pwndrop
+    container_name: pwndrop
+    restart: unless-stopped
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - SECRET_PATH=/pwndrop
+    volumes:
+      - pwndrop:/config
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.pwndrop.entrypoints=https"
+      - "traefik.http.routers.pwndrop.rule=Host(`$PWNDROP_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.pwndrop.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.pwndrop.service=pwndrop"
+      - "traefik.http.services.pwndrop.loadbalancer.server.port=8080"
+      - "traefik.http.routers.pwndrop.middlewares=chain-authelia@file"
 
   ### Matrix Server Stack
 

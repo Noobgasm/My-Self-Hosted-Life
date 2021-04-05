@@ -52,6 +52,7 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [Discourse](https://www.discourse.org/)
 - [Gotify](https://gotify.net/docs/index)
 - [Papermerge](https://www.papermerge.com/)
+- [Pwndrop](https://github.com/kgretzky/pwndrop)
 
 #### Matrix Server Stack
 
