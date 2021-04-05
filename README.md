@@ -50,6 +50,8 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [Ghost](https://ghost.org/)
 - [Matomo](https://matomo.org/)
 - [Discourse](https://www.discourse.org/)
+- [Gotify](https://gotify.net/docs/index)
+- [Papermerge](https://www.papermerge.com/)
 
 #### Matrix Server Stack
 

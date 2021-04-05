@@ -33,6 +33,9 @@ volumes:
   leantime:
   matomo:
   ghost:
+  gotify:
+  papermerge:
+  papermerge_data:
   # Matrix Server Volumes
   matrixdb:
   ma1sd:
@@ -755,6 +758,55 @@ services:
       - "traefik.http.services.ghost.loadbalancer.server.port=2368"
       - "traefik.http.routers.ghost.middlewares=chain-no-auth@file"
 
+  # Gotify - Push Notifications
+  gotify:
+    image: gotify/server
+    container_name: gotify
+    restart: unless-stopped
+    networks:
+      - traefik
+      - database
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - gotify:/app/data
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.gotify.entrypoints=https"
+      - "traefik.http.routers.gotify.rule=Host(`$GOTIFY_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.gotify.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.gotify.service=gotify"
+      - "traefik.http.services.gotify.loadbalancer.server.port=80"
+      - "traefik.http.routers.gotify.middlewares=chain-authelia@file"
+
+  # Papermerge - Document Management System
+  papermerge:
+    image: ghcr.io/linuxserver/papermerge
+    container_name: papermerge
+    restart: unless-stopped
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    volumes:
+      - papermerge:/config
+      - papermerge_data:/data
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.papermerge.entrypoints=https"
+      - "traefik.http.routers.papermerge.rule=Host(`$PAPERMERGE_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.papermerge.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.papermerge.service=papermerge"
+      - "traefik.http.services.papermerge.loadbalancer.server.port=8000"
+      - "traefik.http.routers.papermerge.middlewares=chain-authelia@file"
 
   ### Matrix Server Stack
 

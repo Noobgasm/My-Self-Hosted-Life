@@ -48,6 +48,12 @@ access_control:
       policy: bypass
     - domain: dimension.example.com
       policy: bypass
+    - domain: gotify.example.com
+      resources:
+      - "^/.+$"
+      policy: bypass
+    - domain: gotify.example.com
+      policy: two_factor
     - domain: example.com
       resources:
       - "^/.+$"
