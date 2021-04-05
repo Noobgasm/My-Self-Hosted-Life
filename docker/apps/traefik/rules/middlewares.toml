@@ -29,3 +29,9 @@
      address = "http://authelia:9091/api/verify?rd=https://authelia.example.com"
      trustForwardHeader = true
      authResponseHeaders = ["Remote-User", "Remote-Groups"]
+  
+ [http.middlewares.middlewares-authelia2]
+  [http.middlewares.middlewares-authelia2.forwardAuth]
+     address = "http://authelia2:9091/api/verify?rd=https://authelia.$CHANGE_YOUR_MEDIA_DOMAIN"
+     trustForwardHeader = true
+     authResponseHeaders = ["Remote-User", "Remote-Groups"]

@@ -14,6 +14,9 @@ networks:
   database:
     external:
       name: database    
+  media:
+    external:
+      name: media
 
 #---Volumes---#
 
@@ -28,6 +31,7 @@ volumes:
   n8n:
   firefly:
   leantime:
+  # Matrix Server Volumes
   matrixdb:
   ma1sd:
   jitsi:
@@ -41,6 +45,18 @@ volumes:
   whatsapp:
   reminderbot:
   dimension:
+  # Media Server Volumes
+  jackett:
+  hydra:
+  sabnzbd:
+  qbittorrent:
+  radarr:
+  sonarr:
+  bazarr:
+  mylar:
+  jellyfin:
+  ubooquity:
+  
 
 #---Secrets---#
 
@@ -69,6 +85,15 @@ secrets:
     file: $SECRETSDIR/firefly_mail
   firefly_mail_pass:
     file: $SECRETSDIR/firefly_mail_pass
+  authelia2_jwt_secret:
+    file: $SECRETSDIR/authelia2_jwt_secret
+  authelia2_session_secret:
+    file: $SECRETSDIR/authelia2_session_secret
+  authelia2_mysql_password:
+    file: $SECRETSDIR/authelia2_mysql_password
+  authelia2_notifier_password:
+    file: $SECRETSDIR/authelia2_notifier_password
+  
 
 #---Services---#
 
@@ -894,3 +919,311 @@ services:
       - no-new-privileges:true
     volumes:
       - dimension:/data:z
+
+### Media Stack
+
+# SABnzbd - Binary newsgrabber (NZB downloader)
+  # Disable SABNnzbd's built-in HTTPS support for traefik proxy to work
+  sabnzbd:
+    image: linuxserver/sabnzbd:latest
+    container_name: sabnzbd
+    restart: unless-stopped
+    networks:
+      - media
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - sabnzbd:/config
+      - $MEDIADIR/downloads:/downloads
+      - $MEDIADIR/downloads/incomplete:/incomplete-downloads
+      - $MEDIADIR/library:/library
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+      UMASK_SET: 002
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers Auth
+      - "traefik.http.routers.sabnzbd.entrypoints=https"
+      - "traefik.http.routers.sabnzbd.tls=true"
+      - "traefik.http.routers.sabnzbd.rule=Host(`$SABNZBD_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.sabnzbd.priority=99"
+      ## Middlewares
+      - "traefik.http.routers.sabnzbd.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.sabnzbd.service=sabnzbd"
+      - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
+
+ # Jackett - Torrent proxy
+  jackett:
+    image: linuxserver/jackett:latest
+    container_name: jackett
+    restart: always
+    networks:
+      - media
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - jackett:/config
+      - $MEDIADIR/downloads:/downloads
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.jackett.entrypoints=https"
+      - "traefik.http.routers.jackett.rule=Host(`$JACKETT_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.jackett.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.jackett.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.jackett.service=jackett"
+      - "traefik.http.services.jackett.loadbalancer.server.port=9117"
+
+ # NZBHydra2 - NZB meta search
+  hydra:
+    image: linuxserver/nzbhydra2:latest
+    container_name: hydra
+    restart: unless-stopped
+    networks:
+      - media
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - hydra:/config
+      - $MEDIADIR/downloads:/downloads
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.hydra.entrypoints=https"
+      - "traefik.http.routers.hydra.rule=Host(`$HYDRA_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.hydra.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.hydra.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.hydra.service=hydra"
+      - "traefik.http.services.hydra.loadbalancer.server.port=5076"
+
+  # Radarr - Movie management
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    networks:
+      - media
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - radarr:/config
+      - $MEDIADIR/downloads:/downloads
+      - $MEDIADIR/library:/library
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers Auth
+      - "traefik.http.routers.radarr.entrypoints=https"
+      - "traefik.http.routers.radarr.tls=true"
+      - "traefik.http.routers.radarr.rule=Host(`$RADARR_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.radarr.priority=99"
+      ## Middlewares
+      - "traefik.http.routers.radarr.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.radarr.service=radarr"
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+
+# Sonarr - TV Shows management
+  sonarr:
+    image: linuxserver/sonarr:preview
+    container_name: sonarr
+    restart: unless-stopped
+    networks:
+      - media
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - sonarr:/config
+      - $MEDIADIR/downloads:/downloads
+      - $MEDIADIR/library:/library
+      - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers Auth
+      - "traefik.http.routers.sonarr.entrypoints=https"
+      - "traefik.http.routers.sonarr.tls=true"
+      - "traefik.http.routers.sonarr.rule=Host(`$SONARR_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.sonarr.priority=99"
+      ## Middlewares
+      - "traefik.http.routers.sonarr.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.sonarr.service=sonarr"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+
+ # Jellyfin - Media Server
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    networks:
+      - media
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+      UMASK_SET: 022
+    volumes:
+      - jellyfin:/config
+      - /dev/shm:/ram_transcode
+      - $MEDIADIR/library:/library
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.jellyfin.entrypoints=https"
+      - "traefik.http.routers.jellyfin.rule=Host(`$JELLYFIN_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.jellyfin.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.jellyfin.middlewares=chain-no-auth@file"
+      ## HTTP Services
+      - "traefik.http.routers.jellyfin.service=jellyfin"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+
+ # Bazarr - Subtitle Downloader
+  bazarr:
+    image: linuxserver/bazarr:latest
+    container_name: bazarr
+    restart: unless-stopped
+    networks:
+      - media
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - bazarr:/config
+      - $MEDIADIR/library:/library
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.bazarr.entrypoints=https"
+      - "traefik.http.routers.bazarr.rule=Host(`$BAZARR_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.bazarr.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.bazarr.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.bazarr.service=bazarr"
+      - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
+
+# Qbittorrent - Torrent Downloader
+  qbittorrent:
+    image: linuxserver/qbittorrent
+    container_name: qbittorrent
+    hostname: qbittorrent
+    restart: unless-stopped
+    networks:
+      - media
+      - traefik
+    ports:
+      - "6882:6881"
+      - "6882:6881/udp"
+    volumes:
+      - qbittorrent:/config
+      - ${MEDIADIR}/downloads:/downloads
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+      UMASK: 022
+      WEBUI_PORT: 8168
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.qbittorrent.entrypoints=https"
+      - "traefik.http.routers.qbittorrent.rule=Host(`$QBITTORRENT_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.qbittorrent.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.qbittorrent.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.qbittorrent.service=qbittorrent"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8168"
+
+ # Mylar - Comic Downloader
+  mylar:
+    image: linuxserver/mylar3
+    container_name: mylar
+    networks:
+      media:
+        ipv4_address: $MYLAR_IP
+      traefik:
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+    volumes:
+      - mylar:/config
+      - $MEDIADIR/library:/library
+      - $MEDIADIR/downloads:/downloads
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.mylar.entrypoints=https"
+      - "traefik.http.routers.mylar.rule=Host(`$MYLAR_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.mylar.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.mylar.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.mylar.service=mylar"
+      - "traefik.http.services.mylar.loadbalancer.server.port=8090"
+
+# Ubooquity - Ebook and Comic Reader
+  ubooquity:
+    image: linuxserver/ubooquity
+    container_name: ubooquity
+    networks:
+      - media
+      - traefik
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    volumes:
+      - ubooquity:/config
+      - $MEDIADIR/library/books:/books
+      - $MEDIADIR/library/comics:/comics
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.ubooquity.entrypoints=https"
+      - "traefik.http.routers.ubooquity.rule=Host(`$UBOOQUITY_SUBDOMAIN.$DOMAINNAME2`)"
+      - "traefik.http.routers.ubooquity.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.ubooquity.middlewares=chain-authelia2@file"
+      ## HTTP Services
+      - "traefik.http.routers.ubooquity.service=ubooquity"
+      - "traefik.http.services.ubooquity.loadbalancer.server.port=2202"

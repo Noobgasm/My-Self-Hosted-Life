@@ -66,6 +66,21 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [Discord Bridge](https://github.com/matrix-discord/mx-puppet-discord)
 - [ReminderBot](https://github.com/anoadragon453/matrix-reminder-bot)
 
+#### Media Server Stack
+
+- [Authelia](https://www.authelia.com/)
+- [Bazarr](https://www.bazarr.media/)
+- [Hydra](https://github.com/theotherp/nzbhydra2/)
+- [Jackett](https://github.com/Jackett/Jackett)
+- [Jellyfin](https://jellyfin.org/)
+- [Mylar](https://github.com/evilhero/mylar)
+- [qBittorrent](https://github.com/linuxserver/docker-qbittorrent)
+- [Radarr](https://radarr.video/)
+- [Sonarr](https://sonarr.tv/)
+- [Sabnzbd](https://sabnzbd.org/)
+- [Ubooquity](https://vaemendis.net/ubooquity/)
+
+
 #### Mail Stack
 
 - [Mailcow](https://mailcow.email/)
