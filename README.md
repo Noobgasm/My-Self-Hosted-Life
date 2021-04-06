@@ -58,6 +58,8 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [RSS Bridge](https://github.com/RSS-Bridge/rss-bridge)
 - [RSS Hub](https://docs.rsshub.app/en/)
 - [Snapdrop](https://github.com/RobinLinus/snapdrop)
+- [Healthchecks.io](https://github.com/linuxserver/docker-healthchecks)
+- [Diun](https://github.com/crazy-max/diun)
 
 #### Matrix Server Stack
 

@@ -40,6 +40,8 @@ volumes:
   freshrss:
   ktn:
   drop:
+  healthchecks:
+  diun:
   # Matrix Server Volumes
   matrixdb:
   ma1sd:
@@ -102,6 +104,8 @@ secrets:
     file: $SECRETSDIR/authelia2_mysql_password
   authelia2_notifier_password:
     file: $SECRETSDIR/authelia2_notifier_password
+  healthchecks_email_password:
+    file: $SECRETSDIR/healthchecks_email_password
   
 
 #---Services---#
@@ -769,7 +773,6 @@ services:
     restart: unless-stopped
     networks:
       - traefik
-      - database
     security_opt:
       - no-new-privileges:true
     volumes:
@@ -958,6 +961,76 @@ services:
       - "traefik.http.routers.drop.service=drop"
       - "traefik.http.services.drop.loadbalancer.server.port=80"
       - "traefik.http.routers.drop.middlewares=chain-no-auth@file"
+
+  # Healthchecks - Cron Monitoring Tool
+  healthchecks:
+    image: ghcr.io/linuxserver/healthchecks
+    container_name: healthchecks
+    restart: unless-stopped
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - DOCKER_MODS=linuxserver/mods:healthchecks-apprise
+      - SITE_ROOT=$HEALTHCHECKS_SUBDOMAIN.$DOMAINNAME1
+      - SITE_NAME=MyChecks
+      - DEFAULT_FROM_EMAIL=$HEALTHCHECKS_EMAIL_USER
+      - EMAIL_HOST=$MAIL_SERVER
+      - EMAIL_PORT=587
+      - EMAIL_HOST_USER=$HEALTHCHECKS_EMAIL_USER
+      - FILE__EMAIL_HOST_PASSWORD=/run/secrets/healthchecks_email_password
+      - EMAIL_USE_TLS=True
+      - ALLOWED_HOSTS=$HEALTHCHECKS_SUBDOMAIN.$DOMAINNAME1
+      - SUPERUSER_EMAIL=$HEALTHCHECKS_SUPERUSER_EMAIL
+      - SUPERUSER_PASSWORD=admin
+      - REGISTRATION_OPEN=False
+      - DEBUG=False
+    secrets:
+      - healthchecks_email_password
+    volumes:
+      - healthchecks:/config
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.healthchecks.entrypoints=https"
+      - "traefik.http.routers.healthchecks.rule=Host(`$HEALTHCHECKS_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.healthchecks.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.healthchecks.service=healthchecks"
+      - "traefik.http.services.healthchecks.loadbalancer.server.port=8000"
+      - "traefik.http.routers.healthchecks.middlewares=chain-no-auth@file"
+
+  # Docker Image Update Notifier
+  diun:
+    image: crazymax/diun:latest
+    container_name: diun
+    restart: unless-stopped
+    networks:
+      - proxy
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - diun:/data
+    environment:
+      - TZ=$TZ
+      - LOG_LEVEL=info
+      - LOG_JSON=false
+      - DIUN_PROVIDERS_DOCKER=true
+      - DIUN_PROVIDERS_DOCKER_WATCHSTOPPED=true
+      - DIUN_WATCH_HEALTHCHECKS_BASEURL=$HEALTCHCHECK_DIUN_URL
+      - DIUN_WATCH_HEALTHCHECKS_UUID=$HEALTHCHECK_DIUN_UUID
+      - DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT=true
+      - DIUN_WATCH_SCHEDULE=0 0 * * 5
+      - DIUN_WATCH_FIRSTCHECKNOTIF=true
+      - DIUN_PROVIDERS_DOCKER_ENDPOINT=tcp://proxy:2375
+      - DIUN_NOTIF_GOTIFY_ENDPOINT=$GOTIFY_URL
+      - DIUN_NOTIF_GOTIFY_TOKEN=$GOTIFY_DIUN_TOKEN
+      - DIUN_NOTIF_GOTIFY_PRIORITY=1
+      - DIUN_NOTIF_GOTIFY_TIMEOUT=10s
 
   ### Matrix Server Stack
 
