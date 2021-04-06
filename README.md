@@ -53,6 +53,10 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [Gotify](https://gotify.net/docs/index)
 - [Papermerge](https://www.papermerge.com/)
 - [Pwndrop](https://github.com/kgretzky/pwndrop)
+- [Kill the Newsletter](https://github.com/leafac/kill-the-newsletter)
+- [FreshRSS](https://www.freshrss.org/)
+- [RSS Bridge](https://github.com/RSS-Bridge/rss-bridge)
+- [RSS Hub](https://docs.rsshub.app/en/)
 
 #### Matrix Server Stack
 

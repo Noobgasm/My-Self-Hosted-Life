@@ -37,6 +37,8 @@ volumes:
   papermerge:
   papermerge_data:
   pwndrop:
+  freshrss:
+  ktn:
   # Matrix Server Volumes
   matrixdb:
   ma1sd:
@@ -835,6 +837,103 @@ services:
       - "traefik.http.routers.pwndrop.service=pwndrop"
       - "traefik.http.services.pwndrop.loadbalancer.server.port=8080"
       - "traefik.http.routers.pwndrop.middlewares=chain-authelia@file"
+
+  # FreshRSS - RSS Agregator
+  freshrss:
+    image: ghcr.io/linuxserver/freshrss
+    container_name: freshrss
+    networks:
+      - traefik
+      - database
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    restart: unless-stopped
+    volumes:
+      - freshrss:/config
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.freshrss.entrypoints=https"
+      - "traefik.http.routers.freshrss.rule=Host(`$FRESHRSS_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.freshrss.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.freshrss.service=freshrss"
+      - "traefik.http.services.freshrss.loadbalancer.server.port=80"
+      - "traefik.http.routers.freshrss.middlewares=chain-no-auth@file"
+
+  rssbridge:
+    image: rssbridge/rss-bridge:latest
+    container_name: rssbridge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $DOCKERDIR/apps/rssbridge/whitelist.txt:/app/whitelist.txt
+    networks:
+      - "traefik"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.rssbridge.entrypoints=https"
+      - "traefik.http.routers.rssbridge.rule=Host(`$RSSBRIDGE_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.rssbridge.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.rssbridge.service=rssbridge"
+      - "traefik.http.services.rssbridge.loadbalancer.server.port=80"
+      - "traefik.http.routers.rssbridge.middlewares=chain-authelia@file"
+
+  rsshub:
+    image: diygod/rsshub
+    container_name: rsshub
+    restart: unless-stopped
+    networks:
+      - traefik
+      - database
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: redis
+      REDIS_URL: 'redis://redis:6379/'
+    depends_on:
+      - redis
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.rsshub.entrypoints=https"
+      - "traefik.http.routers.rsshub.rule=Host(`$RSSHUB_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.rsshub.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.rsshub.service=rsshub"
+      - "traefik.http.services.rsshub.loadbalancer.server.port=1200"
+      - "traefik.http.routers.rsshub.middlewares=chain-authelia@file"
+
+  ktn:
+    build: $DOCKERDIR/apps/ktn
+    container_name: ktn
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    volumes:
+      - ktn:/kill-the-newsletter/static
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.ktn.entrypoints=https"
+      - "traefik.http.routers.ktn.rule=Host(`$KTN_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.ktn.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.ktn.service=ktn"
+      - "traefik.http.services.ktn.loadbalancer.server.port=8000"
+      - "traefik.http.routers.ktn.middlewares=chain-authelia@file"
+
+
 
   ### Matrix Server Stack
 

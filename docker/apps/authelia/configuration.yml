@@ -68,6 +68,24 @@ access_control:
       resources:
       - "^/.+$"
       policy: bypass
+    - domain: rssbridge.example.com
+      resources:
+      - "^/.+$"
+      policy: bypass
+    - domain: rssbridge.example.com
+      policy: two_factor
+    - domain: rsshub.example.com
+      resources:
+      - "^/.+$"
+      policy: bypass
+    - domain: rsshub.example.com
+      policy: two_factor  
+    - domain: ktn.example.com
+      resources:
+      - "^/.+$"
+      policy: bypass
+    - domain: ktn.example.com
+      policy: two_factor  
     - domain: example.com
       policy: two_factor
     - domain: "*.example.com"
