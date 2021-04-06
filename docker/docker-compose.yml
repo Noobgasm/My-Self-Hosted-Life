@@ -39,6 +39,7 @@ volumes:
   pwndrop:
   freshrss:
   ktn:
+  drop:
   # Matrix Server Volumes
   matrixdb:
   ma1sd:
@@ -933,7 +934,30 @@ services:
       - "traefik.http.services.ktn.loadbalancer.server.port=8000"
       - "traefik.http.routers.ktn.middlewares=chain-authelia@file"
 
-
+  drop:
+    image: ghcr.io/linuxserver/snapdrop
+    container_name: drop
+	  restart: unless-stopped
+	  networks:
+      - traefik
+	  security_opt:
+      - no-new-privileges:true
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    volumes:
+      - drop:/config
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.drop.entrypoints=https"
+      - "traefik.http.routers.drop.rule=Host(`$DROP_SUBDOMAIN.$DOMAINNAME1`)"
+      - "traefik.http.routers.drop.tls=true"
+      ## HTTP Services
+      - "traefik.http.routers.drop.service=drop"
+      - "traefik.http.services.drop.loadbalancer.server.port=80"
+      - "traefik.http.routers.drop.middlewares=chain-no-auth@file"
 
   ### Matrix Server Stack
 

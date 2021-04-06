@@ -57,6 +57,7 @@ It uses docker and docker compose for the moment but I might learn and create so
 - [FreshRSS](https://www.freshrss.org/)
 - [RSS Bridge](https://github.com/RSS-Bridge/rss-bridge)
 - [RSS Hub](https://docs.rsshub.app/en/)
+- [Snapdrop](https://github.com/RobinLinus/snapdrop)
 
 #### Matrix Server Stack
 
